@@ -19,7 +19,6 @@ mod engine {
                 content: read_available_files(a.src.location().to_owned())
                     .ok()
                     .expect("could not read files")
-                    .map(|p| p.as_path().file_name().expect("could not parse file name")),
             };
 
             engine
