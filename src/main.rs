@@ -1,24 +1,24 @@
-use structopt::StructOpt;
-
 mod engine {
-    use std::{fs, io};
-    use std::path::PathBuf;
-    use super::Args;
     use super::text::Text;
+    use super::Args;
+    use std::path::PathBuf;
+    use std::{fs, io};
 
     #[derive(Debug)]
     pub struct Engine<'a> {
         pub src: &'a Text,
         pub content: Vec<PathBuf>,
+        pub chapter: i32,
     }
 
-    impl <'a> Engine<'a> {
-        pub fn new_from_args(a: &Args) -> Engine {
-            let engine = Engine{
+    impl<'a> Engine<'a> {
+        pub fn new(a: &Args) -> Engine {
+            let engine = Engine {
                 src: &a.src,
+                chapter: a.chapter,
                 content: read_available_files(a.src.location().to_owned())
                     .ok()
-                    .expect("could not read files")
+                    .expect("could not read files"),
             };
 
             engine
@@ -60,41 +60,76 @@ mod text {
             match s {
                 "lxx" => Ok(Text::Lxx),
                 "mt" => Ok(Text::MT),
-                _ => Ok(Text::Lxx)
+                _ => Ok(Text::Lxx),
             }
         }
     }
 }
 
-#[derive(StructOpt)]
-pub struct Args {
-    #[structopt(short, long)]
-    debug: bool,
+mod controller {
+    use super::engine::Engine;
 
-    #[structopt(short = "A", long = "action", default_value = "read")]
-    action: String,
-    #[structopt(short = "B", long = "book", default_value = "Genesis")]
-    book: String,
-    #[structopt(short = "C", long = "chapter", default_value = "1")]
-    chapter: i32,
-    #[structopt(short = "S", long = "src", default_value = "lxx")]
-    src: text::Text,
+    #[derive(Debug)]
+    pub struct Controller<'a> {
+        engine: &'a Engine<'a>,
+    }
+
+    impl <'a> Controller<'a> {
+        pub fn new(e: &'a Engine<'a>) -> Controller {
+            Controller {
+                engine: e,
+            }
+        }
+    }
 }
 
+mod args {
+    use super::text;
+    use structopt::StructOpt;
+
+    #[derive(StructOpt)]
+    pub struct Args {
+        #[structopt(short, long)]
+        debug: bool,
+
+        #[structopt(short = "A", long = "action", default_value = "read")]
+        pub action: String,
+        #[structopt(short = "B", long = "book", default_value = "Genesis")]
+        pub book: String,
+        #[structopt(short = "C", long = "chapter", default_value = "1")]
+        pub chapter: i32,
+        #[structopt(short = "S", long = "src", default_value = "lxx")]
+        pub src: text::Text,
+    }
+
+    impl Args {
+        pub fn new() -> Args {
+            Args::from_args()
+        }
+    }
+}
+
+use args::Args;
+use engine::Engine;
+use controller::Controller;
 
 fn main() -> std::io::Result<()> {
-    let args = Args::from_args();
-    let engine = engine::Engine::new_from_args(&args);
+    let args = Args::new();
+    let engine = Engine::new(&args);
+    let controller = Controller::new(&engine);
 
     println!("{}", args.book);
     println!("{:?}", args.action);
     println!("{:?}", engine);
+    println!("{:?}", controller);
 
     for c in engine.content {
-        println!("{:?}", c
-            .as_path()
-            .file_name()
-            .expect("could not resolve file name"));
+        println!(
+            "{:?}",
+            c.as_path()
+                .file_name()
+                .expect("could not resolve file name")
+        );
     }
 
     Ok(())
