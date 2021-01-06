@@ -3,34 +3,49 @@ mod engine {
     use super::Args;
     use std::path::PathBuf;
     use std::{fs, io};
+    use std::ffi::OsStr;
+    use std::collections::HashMap;
 
     #[derive(Debug)]
     pub struct Engine<'a> {
         pub src: &'a Text,
-        pub content: Vec<PathBuf>,
         pub chapter: i32,
+        pub store: HashMap<&'static str, &'a PathBuf>,
     }
 
     impl<'a> Engine<'a> {
         pub fn new(a: &Args) -> Engine {
+            let content = read_available_files(a.src.location().to_owned())
+                    .ok()
+                    .expect("could not read files");
             let engine = Engine {
                 src: &a.src,
                 chapter: a.chapter,
-                content: read_available_files(a.src.location().to_owned())
-                    .ok()
-                    .expect("could not read files"),
+                store: read_available_files(a.src.location().to_owned()).ok().expect("problem"),
             };
 
             engine
         }
     }
 
-    fn read_available_files(loc: String) -> io::Result<Vec<PathBuf>> {
+
+    fn read_available_files(loc: String) -> io::Result<HashMap<&'static str, &'static PathBuf>> {
         let contents = fs::read_dir(loc)?
             .map(|res| res.map(|e| e.path()))
             .collect::<Result<Vec<PathBuf>, io::Error>>()?;
 
-        Ok(contents)
+        let mut m: HashMap<&str, &PathBuf> = HashMap::new();
+
+        contents.iter().map(|p| {
+            let fname = p
+                .to_path_buf()
+                .as_path()
+                .file_name()
+                .expect("could not resolve file name");
+            m.insert(fname.to_str().expect("invalid operation"), p);
+        });
+
+        Ok(m)
     }
 }
 
@@ -67,17 +82,29 @@ mod text {
 }
 
 mod controller {
-    use super::engine::Engine;
+    use std::io;
+
+    const EXIT: &'static str = "exit";
+    const QUIT: &'static str = "quit";
 
     #[derive(Debug)]
-    pub struct Controller<'a> {
-        engine: &'a Engine<'a>,
+    pub struct Controller {
+        pub line: String,
     }
 
-    impl <'a> Controller<'a> {
-        pub fn new(e: &'a Engine<'a>) -> Controller {
+    impl Controller {
+        pub fn new() -> Controller {
             Controller {
-                engine: e,
+                line: String::new(),
+            }
+        }
+        pub fn read(&self) -> io::Result<(bool, String)> {
+            let mut line = String::new();
+            io::stdin().read_line(&mut line)?;
+            match line.trim() {
+                EXIT => Ok((false, "".to_owned())),
+                QUIT => Ok((false, "".to_owned())),
+                l => Ok((true, String::from(l)))
             }
         }
     }
@@ -110,26 +137,26 @@ mod args {
 }
 
 use args::Args;
-use engine::Engine;
 use controller::Controller;
+use engine::Engine;
 
 fn main() -> std::io::Result<()> {
     let args = Args::new();
     let engine = Engine::new(&args);
-    let controller = Controller::new(&engine);
+    let controller = Controller::new();
 
     println!("{}", args.book);
     println!("{:?}", args.action);
     println!("{:?}", engine);
     println!("{:?}", controller);
 
-    for c in engine.content {
-        println!(
-            "{:?}",
-            c.as_path()
-                .file_name()
-                .expect("could not resolve file name")
-        );
+    loop {
+        let (cont, line) = controller.read()?;
+        if !cont {
+            break;
+        }
+
+        println!("{}", line);
     }
 
     Ok(())
