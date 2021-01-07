@@ -1,10 +1,9 @@
 mod engine {
     use super::text::Text;
     use super::Args;
+    use std::collections::HashMap;
     use std::path::PathBuf;
     use std::{fs, io};
-    use std::ffi::OsStr;
-    use std::collections::HashMap;
 
     #[derive(Debug)]
     pub struct Engine<'a> {
@@ -15,19 +14,17 @@ mod engine {
 
     impl<'a> Engine<'a> {
         pub fn new(a: &Args) -> Engine {
-            let content = read_available_files(a.src.location().to_owned())
-                    .ok()
-                    .expect("could not read files");
             let engine = Engine {
                 src: &a.src,
                 chapter: a.chapter,
-                store: read_available_files(a.src.location().to_owned()).ok().expect("problem"),
+                store: read_available_files(a.src.location().to_owned())
+                    .ok()
+                    .expect("problem"),
             };
 
             engine
         }
     }
-
 
     fn read_available_files(loc: String) -> io::Result<HashMap<&'static str, &'static PathBuf>> {
         let contents = fs::read_dir(loc)?
@@ -104,7 +101,7 @@ mod controller {
             match line.trim() {
                 EXIT => Ok((false, "".to_owned())),
                 QUIT => Ok((false, "".to_owned())),
-                l => Ok((true, String::from(l)))
+                l => Ok((true, String::from(l))),
             }
         }
     }
